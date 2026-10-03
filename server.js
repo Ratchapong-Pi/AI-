@@ -36,6 +36,7 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 app.use('/uploads', express.static(UPLOAD_DIR));
 
 // Helper: Cache key by URL or Base64 hash
@@ -90,6 +91,43 @@ app.post('/api/fetch-manga-url', async (req, res) => {
 
   try {
     const targetUrl = url.trim();
+
+    // Special Handler: MangaDex API (Fast & 100% full-resolution)
+    const mangadexMatch = targetUrl.match(/mangadex\.org\/chapter\/([a-f0-9\-]+)/i);
+    if (mangadexMatch) {
+      const chapterId = mangadexMatch[1];
+      try {
+        console.log(`[MangaDex] Detected chapter ID: ${chapterId}`);
+        const [chInfoRes, atHomeRes] = await Promise.all([
+          axios.get(`https://api.mangadex.org/chapter/${chapterId}`, { timeout: 15000 }).catch(() => null),
+          axios.get(`https://api.mangadex.org/at-home/server/${chapterId}`, { timeout: 15000 })
+        ]);
+
+        let title = 'MangaDex Chapter';
+        if (chInfoRes?.data?.data?.attributes) {
+          const attr = chInfoRes.data.data.attributes;
+          title = attr.title ? `Chapter ${attr.chapter || ''}: ${attr.title}` : `MangaDex Chapter ${attr.chapter || ''}`;
+        }
+
+        const baseUrl = atHomeRes.data.baseUrl;
+        const hash = atHomeRes.data.chapter.hash;
+        const files = atHomeRes.data.chapter.data || [];
+        const images = files.map(file => `${baseUrl}/data/${hash}/${file}`);
+
+        if (images.length > 0) {
+          return res.json({
+            success: true,
+            title,
+            sourceUrl: targetUrl,
+            images,
+            count: images.length
+          });
+        }
+      } catch (mdErr) {
+        console.error('[MangaDex API error]:', mdErr.message);
+      }
+    }
+
     const parsed = new URL(targetUrl);
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',

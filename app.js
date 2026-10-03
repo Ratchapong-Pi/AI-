@@ -286,10 +286,29 @@ class MangaTranslatorApp {
     });
   }
 
+  async safeFetchJson(url, options = {}) {
+    const res = await fetch(url, options);
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      if (res.status === 404 || window.location.hostname.endsWith('github.io')) {
+        throw new Error('⚠️ GitHub Pages ไม่รองรับ Node.js: หากเปิดจาก GitHub Pages จะไม่สามารถเชื่อมต่อเซิร์ฟเวอร์แปลหรือดึงภาพได้ กรุณารันด้วย "npm start" บนคอมพิวเตอร์ หรือ Deploy ขึ้น Render.com');
+      }
+      const text = await res.text();
+      throw new Error(`เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (${res.status}): ${text.slice(0, 80)}`);
+    }
+    return await res.json();
+  }
+
   async checkInitialState() {
+    if (window.location.hostname.endsWith('github.io')) {
+      setTimeout(() => {
+        this.showToast('⚠️ คุณกำลังเปิดจาก GitHub Pages (ไม่รองรับ Node.js) กรุณารันบนคอมด้วย npm start หรือ Deploy บน Render.com', 'warning');
+      }, 1000);
+      return;
+    }
+
     try {
-      const res = await fetch('/api/config');
-      const data = await res.json();
+      const data = await this.safeFetchJson('/api/config');
       if (data.hasServerKey) {
         if (!this.settings.apiKey) {
           this.settings.apiKey = 'SERVER_CONFIGURED';
@@ -384,12 +403,11 @@ class MangaTranslatorApp {
     statusEl.style.color = 'var(--warning)';
 
     try {
-      const res = await fetch('/api/test-key', {
+      const data = await this.safeFetchJson('/api/test-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey: inputVal || this.settings.apiKey, model })
       });
-      const data = await res.json();
       if (data.success) {
         statusEl.textContent = '✅ API Key ใช้งานได้ปกติสมบูรณ์!';
         statusEl.style.color = 'var(--success)';
@@ -418,12 +436,11 @@ class MangaTranslatorApp {
     if (window.lucide) window.lucide.createIcons();
 
     try {
-      const res = await fetch('/api/fetch-manga-url', {
+      const data = await this.safeFetchJson('/api/fetch-manga-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
       });
-      const data = await res.json();
 
       if (!data.success || !data.images?.length) {
         throw new Error(data.error || 'ไม่พบรูปภาพในหน้านี้');
@@ -452,11 +469,10 @@ class MangaTranslatorApp {
     this.showToast('กำลังอัปโหลดรูปภาพ...', 'info');
 
     try {
-      const res = await fetch('/api/upload-images', {
+      const data = await this.safeFetchJson('/api/upload-images', {
         method: 'POST',
         body: formData
       });
-      const data = await res.json();
 
       if (!data.success || !data.images?.length) {
         throw new Error(data.error || 'อัปโหลดไม่สำเร็จ');
@@ -798,7 +814,7 @@ class MangaTranslatorApp {
     this.updatePageCardStatus(pageIndex);
 
     try {
-      const res = await fetch('/api/translate-page', {
+      const data = await this.safeFetchJson('/api/translate-page', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -810,7 +826,6 @@ class MangaTranslatorApp {
         })
       });
 
-      const data = await res.json();
       if (!data.success) {
         // If 503 or busy, retry gracefully
         if (retryCount < 2 && (data.error?.includes('demand') || data.error?.includes('503') || data.error?.includes('429'))) {
@@ -1131,8 +1146,7 @@ class MangaTranslatorApp {
     modal.style.display = 'flex';
 
     try {
-      const res = await fetch('/api/network-info');
-      const data = await res.json();
+      const data = await this.safeFetchJson('/api/network-info');
       const input = document.getElementById('mobileUrlDisplay');
       const qrImg = document.getElementById('qrCodeImg');
       if (input && data.mobileUrl) input.value = data.mobileUrl;
