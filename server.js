@@ -41,7 +41,7 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 
 // Helper: Cache key by URL or Base64 hash
 function getCacheKey(identifier, style = 'natural', targetLang = 'th') {
-  return crypto.createHash('md5').update(`${identifier}_${style}_${targetLang}`).digest('hex');
+  return crypto.createHash('md5').update(`v3_exhaustive_${identifier}_${style}_${targetLang}`).digest('hex');
 }
 
 // 0. CONFIG STATUS
@@ -330,17 +330,45 @@ app.post('/api/translate-page', async (req, res) => {
     if (style === 'romance') styleInstruction = 'แปลแนวโรแมนติก/ดราม่า อ่อนหวาน ละมุน หรือเจ็บปวดตามอารมณ์ตัวละคร';
     if (style === 'comedic') styleInstruction = 'แปลแนวคอมเมดี้ ตลก กวนๆ ใช้มุกและภาษาพูดที่เข้าใจง่าย สนุกสนาน';
 
-    const promptText = `You are an elite Manga/Manhwa Typesetter & Localization Expert.
-Analyze this manga page image thoroughly and identify ALL text elements including speech bubbles, thought bubbles, captions, and sound effects.
+    const promptText = `You are an elite Manga/Manhwa Typesetter, OCR Engine & Localization Master.
+Your absolute mission is 100% EXHAUSTIVE, ZERO-MISSED-TEXT detection and high-precision Thai translation.
 
-For EACH text element:
-1. Detect tight 2D bounding box [ymin, xmin, ymax, xmax] in 0-1000 normalized coordinates, tightly bounding the exact text words themselves (hug the text characters tightly, do NOT include empty space below or around the text).
-2. Transcribe the original text accurately (Japanese, Korean, English, Chinese).
-3. Translate into Thai (${styleInstruction}).
-4. Identify the bubble shape: "oval", "circle", "rounded_rect", "rect", "cloud", or "sfx".
-5. Identify background color: "#ffffff", "#000000", or exact hex color.
-6. Identify text color: "#000000" or "#ffffff".
-7. Determine text type: "dialogue", "thought", "narration", "sfx", or "side_text".
+🚨 ZERO-MISSED-TEXT POLICY - SCAN EVERY SINGLE CORNER AND DETECT ALL OF THE FOLLOWING:
+Scan the entire page systematically from top-to-bottom, left-to-right. You must detect and translate LITERALLY EVERY SINGLE HUMAN-READABLE CHARACTER, WORD, NUMBER, OR PHRASE appearing anywhere in the image:
+
+1. ALL SPEECH, THOUGHT, AND SHOUT BUBBLES:
+   - Dialogue, whispers, screams, shouts, internal monologues, telepathy, robot/monster speech.
+2. ALL FLOATING TEXT & ON-PANEL NOTES (OUTSIDE BUBBLES):
+   - Scrawled handwritten thoughts, character commentary beside faces, sweat-drop remarks, comedic side notes.
+   - Text written directly on the background, shadows, effects, or art without any container.
+3. ALL TITLES, HEADERS, EPISODE INTROS & TIME/LOCATION CARDS:
+   - e.g. "5,000 YEARS AGO.", "10 YEARS LATER", "EPISODE 12", "CHAPTER 1", "PROLOGUE", "CASTLE OF EVIL".
+   - Huge artistic action titles, epic chapter titles, story opening titles (e.g. "HERO, THE BEASTMAN WARRIOR", "THE FINAL BATTLE").
+4. ALL SCROLLS, BANNERS, SIGNS, LABELS & OBJECT TEXT:
+   - Character names on scrolls, parchment banners, name tags, gravestones, crests, shields (e.g. "Aron").
+   - Shop signs, road signs, book covers, letters, posters, newspaper headlines, magic circle runes.
+5. ALL SYSTEM SCREENS, RPG MENUS & STATUS WINDOWS:
+   - Quest alerts, skill names, level ups, stat numbers, game notifications, inventory labels.
+6. ALL SOUND EFFECTS (SFX) & ONOMATOPOEIA:
+   - Action sounds (BOOM, SLASH, CRASH, WHOOSH, THUD, ドン, 쾅, 콰아아).
+7. MARGIN, EDGE & EDITOR TEXT:
+   - Magazine notes, author comments, next chapter teasers at page edges.
+
+🚨 MULTI-LANGUAGE & ENGLISH TRANSLATION MANDATE:
+- The text can be in English, Korean, Japanese, Chinese, or mixed languages.
+- ⚠️ CRITICAL: NEVER LEAVE ANY TEXT UNTRANSLATED!
+  Even if the original text is in ENGLISH (e.g. "HERO, THE BEASTMAN WARRIOR", "Aron", "5,000 YEARS AGO.", "LEVEL UP", "SYSTEM"), YOU MUST TRANSLATE IT INTO THAI! Do NOT assume English should be left as-is.
+
+TRANSLATION QUALITY & ACCURACY:
+- Translate into natural, fluent, and captivating Thai (${styleInstruction}).
+- For character / place names: Transliterate phonetically into natural Thai (e.g. "Aron" -> "แอรอน").
+- For titles & epithets: Translate with epic, heroic fantasy tone matching the genre (e.g. "HERO, THE BEASTMAN WARRIOR" -> "ผู้กล้า นักรบอมนุษย์").
+- For sound effects (SFX): Translate into Thai comic sound equivalents (e.g. ตึ้ง, ตู้ม, วูบ, เปรี้ยง, ชิ้ง).
+- For time/location: Translate clearly (e.g. "5,000 YEARS AGO." -> "5,000 ปีก่อน").
+
+BOUNDING BOX ACCURACY (DIRECT OVERLAY):
+- For EVERY single text element, calculate its tight 2D bounding box [ymin, xmin, ymax, xmax] in 0-1000 normalized coordinates.
+- Hug the text closely so the Thai translation pill sits directly centered over the original words.
 
 Return STRICT JSON matching this structure:
 {
@@ -349,31 +377,28 @@ Return STRICT JSON matching this structure:
   "bubbles": [
     {
       "box_2d": [ymin, xmin, ymax, xmax],
-      "source_text": "元のテキスト",
-      "thai_text": "คำแปลภาษาไทย",
-      "bubble_shape": "oval",
-      "text_type": "dialogue",
+      "source_text": "exact original text",
+      "thai_text": "คำแปลภาษาไทยที่แม่นยำและสละสลวย",
+      "bubble_shape": "oval" | "rect" | "banner" | "sfx",
+      "text_type": "title" | "name" | "narration" | "dialogue" | "sfx" | "system",
       "bg_color": "#ffffff",
       "text_color": "#000000"
     }
   ]
 }`;
 
-
     // Smart Multi-Quota Model Rotation Pool (Active Quota First)
     const candidateModels = Array.from(new Set([
       'gemini-3.5-flash-lite',
       'gemini-3-flash-preview',
+      'gemini-3.5-flash',
+      'gemini-flash-lite-latest',
       'gemini-3.6-flash',
       model,
       'gemini-3.1-flash-lite'
     ]));
     let geminiRes = null;
     let lastError = null;
-
-
-
-
 
     for (const targetModel of candidateModels) {
       try {
@@ -394,7 +419,7 @@ Return STRICT JSON matching this structure:
           ],
           generationConfig: {
             response_mime_type: "application/json",
-            temperature: 0.3
+            temperature: 0.15
           }
         };
 
