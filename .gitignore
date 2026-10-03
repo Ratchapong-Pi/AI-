@@ -1,0 +1,18 @@
+# Dependencies (Never commit node_modules)
+node_modules/
+
+# Environment Variables & Private Secrets (DO NOT COMMIT!)
+.env
+.env.local
+.env.*.local
+
+# Cache and Uploaded Media
+cache/
+uploads/
+*.log
+
+# OS & Editor generated files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

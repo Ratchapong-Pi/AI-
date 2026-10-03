@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0c10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MangaX AI">
+  <title>MangaX AI - เว็บแปลภาษามังงะอัจฉริยะด้วย Gemini AI</title>
+  <meta name="description" content="ระบบแปลภาษามังงะและมันฮวาอัตโนมัติด้วย Google Gemini Vision API พร้อมระบบอ่านและทับกล่องข้อความบอลลูนคำพูด">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="manifest" href="manifest.json">
+  <!-- Google Fonts for Thai Manga Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,600;0,700;1,700&family=Itim&family=Kanit:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Mali:ital,wght@0,400;0,600;0,700;1,600&family=Prompt:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Local Lucide Icons (Zero CDN reliance) -->
+  <script src="lucide.min.js"></script>
+  <link rel="stylesheet" href="style.css?v=3.0">
+</head>
+<body class="dark-theme">
+  <div id="app" class="app-container">
+    
+    <!-- Top Navigation Bar -->
+    <header class="navbar glass-header">
+      <div class="nav-left">
+        <div class="logo">
+          <div class="logo-icon"><i data-lucide="sparkles"></i></div>
+          <div class="logo-text">
+            <span class="brand-title">Manga<span class="gradient-text">X</span> AI</span>
+            <span class="brand-subtitle">Gemini Multimodal Reader</span>
+          </div>
+        </div>
+        
+        <div class="divider-vertical"></div>
+
+        <button id="btnOpenSourceModal" class="btn btn-primary glow-btn">
+          <i data-lucide="plus-circle"></i>
+          <span>เปิดมังงะ / ใส่ลิงก์</span>
+        </button>
+
+        <div class="chapter-info-pill" id="chapterInfoPill" style="display: none;">
+          <i data-lucide="book-open"></i>
+          <span id="chapterTitleDisplay">ไม่มีตอนที่เปิดอยู่</span>
+          <span class="badge" id="pageCountBadge">0 หน้า</span>
+        </div>
+      </div>
+
+      <div class="nav-center">
+        <!-- View Mode Switcher -->
+        <div class="segmented-control">
+          <button id="modeWebtoon" class="seg-btn active" title="โหมดเว็บตูน (เลื่อนยาวแนวตั้ง)">
+            <i data-lucide="scroll"></i>
+            <span>Webtoon</span>
+          </button>
+          <button id="modeSingle" class="seg-btn" title="โหมดมังงะ (เปิดทีละหน้า R2L / L2R)">
+            <i data-lucide="book"></i>
+            <span>Manga</span>
+          </button>
+        </div>
+
+        <!-- Quick Toggle Original Artwork -->
+        <button id="btnToggleOriginal" class="btn btn-secondary toggle-orig-btn" title="สลับดูภาพต้นฉบับ (กดค้าง Spacebar ได้)">
+          <i data-lucide="eye"></i>
+          <span>ดูต้นฉบับ [Space]</span>
+        </button>
+
+        <button id="btnAutoTranslateAll" class="btn btn-accent" title="แปลทุกหน้าที่ยังไม่ได้แปล">
+          <i data-lucide="languages"></i>
+          <span>แปลทั้งหมด</span>
+        </button>
+      </div>
+
+      <div class="nav-right">
+        <!-- Zoom Controls -->
+        <div class="zoom-controls">
+          <button id="btnZoomOut" class="btn-icon" title="ย่อขนาด (-)"><i data-lucide="zoom-out"></i></button>
+          <span id="zoomLabel" class="zoom-text">100%</span>
+          <button id="btnZoomIn" class="btn-icon" title="ขยายขนาด (+)"><i data-lucide="zoom-in"></i></button>
+          <button id="btnFitWidth" class="btn-icon active" title="พอดีความกว้างหน้าจอ"><i data-lucide="maximize-2"></i></button>
+        </div>
+
+        <button id="btnExportPage" class="btn-icon" title="บันทึกรูปหน้านี้พร้อมคำแปล"><i data-lucide="download"></i></button>
+        <button id="btnConnectMobile" class="btn-icon mobile-qr-btn" title="เปิดอ่านบนมือถือ (Scan QR Code)"><i data-lucide="smartphone"></i></button>
+        <button id="btnFullscreen" class="btn-icon" title="เต็มจอ (Fullscreen)"><i data-lucide="expand"></i></button>
+        <button id="btnSettings" class="btn-icon" title="ตั้งค่า API Key และ AI"><i data-lucide="settings"></i></button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="reader-workspace">
+
+      <!-- Empty / Welcome State -->
+      <section id="welcomeHero" class="welcome-hero">
+        <div class="hero-content">
+          <div class="hero-badge">
+            <i data-lucide="bot"></i> ขับเคลื่อนด้วย Google Gemini Multimodal AI
+          </div>
+          <h1 class="hero-title">แปลภาษามังงะ & มันฮวา <span class="gradient-text">ฉับไวด้วย AI</span></h1>
+          <p class="hero-desc">
+            อ่านมังงะภาษาญี่ปุ่น เกาหลี จีน หรืออังกฤษเป็นภาษาไทยได้ทันที เพียงใส่ลิงก์หรืออัปโหลดรูปภาพ 
+            ระบบจะลบข้อความเดิมและใส่ภาษาไทยลงในบอลลูนคำพูดอย่างเป็นธรรมชาติ
+          </p>
+
+          <div class="hero-actions">
+            <button id="btnHeroUrl" class="btn btn-primary btn-lg glow-btn">
+              <i data-lucide="link"></i> ใส่ลิงก์เว็บมังงะ
+            </button>
+            <button id="btnHeroUpload" class="btn btn-secondary btn-lg">
+              <i data-lucide="upload-cloud"></i> อัปโหลดรูป / โฟลเดอร์
+            </button>
+            <button id="btnHeroSample" class="btn btn-ghost btn-lg">
+              <i data-lucide="play-circle"></i> ลองตัวอย่างมังงะฟรี
+            </button>
+          </div>
+
+
+          <!-- Feature Cards Grid -->
+          <div class="feature-grid">
+            <div class="feature-card glass-card">
+              <div class="feature-icon"><i data-lucide="target"></i></div>
+              <h3>ตรวจจับบอลลูนเป๊ะ</h3>
+              <p>Gemini Vision ค้นหาพิกัดกล่องคำพูด SFX และคำบรรยายได้อย่างแม่นยำ</p>
+            </div>
+            <div class="feature-card glass-card">
+              <div class="feature-icon"><i data-lucide="message-square"></i></div>
+              <h3>สำนวนไทยสละสลวย</h3>
+              <p>ปรับโทนได้ทั้งแบบ โชเน็นต่อสู้, โรแมนติกหวานซึ้ง หรือคอมเมดี้กวนๆ</p>
+            </div>
+            <div class="feature-card glass-card">
+              <div class="feature-icon"><i data-lucide="eye-off"></i></div>
+              <h3>ดูต้นฉบับได้ทันที</h3>
+              <p>กด Spacebar หรือเลื่อนเมาส์ชี้เพื่อดูภาษาญี่ปุ่น/เกาหลีดั้งเดิมได้ตลอดเวลา</p>
+            </div>
+            <div class="feature-card glass-card">
+              <div class="feature-icon"><i data-lucide="zap"></i></div>
+              <h3>แคชไว ประหยัดโควต้า</h3>
+              <p>บันทึกคำแปลไว้ในเครื่อง อ่านซ้ำได้ทันทีไม่ต้องเสียโควต้า API ซ้ำ</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reader Container (Webtoon Mode) -->
+      <section id="webtoonContainer" class="reader-container webtoon-layout" style="display: none;">
+        <div id="pagesList" class="pages-stream">
+          <!-- Page Cards will be injected here dynamically -->
+        </div>
+      </section>
+
+      <!-- Reader Container (Single Manga Mode) -->
+      <section id="mangaContainer" class="reader-container manga-layout" style="display: none;">
+        <div class="manga-viewport" id="mangaViewport">
+          <!-- Single page view injected here -->
+        </div>
+        
+        <!-- Manga Navigation Floating Bar -->
+        <div class="manga-bottom-bar glass-card">
+          <button id="btnPrevPage" class="btn btn-secondary">
+            <i data-lucide="chevron-left"></i> หน้าก่อนหน้า (A)
+          </button>
+          <div class="page-slider-wrap">
+            <span id="mangaCurrentPageText">หน้า 1 / 1</span>
+            <input type="range" id="mangaPageSlider" min="1" max="1" value="1">
+          </div>
+          <button id="btnNextPage" class="btn btn-primary">
+            หน้าถัดไป (D) <i data-lucide="chevron-right"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- Sticky Sidebar Quick Navigation -->
+      <aside id="readerSidebar" class="reader-sidebar glass-card" style="display: none;">
+        <div class="sidebar-header">
+          <i data-lucide="layers"></i>
+          <span>หน้าทั้งหมด (<span id="sidebarCount">0</span>)</span>
+        </div>
+        <div id="thumbnailsList" class="thumbnails-grid">
+          <!-- Thumbnails injected here -->
+        </div>
+      </aside>
+
+      <!-- Floating Tooltip / Inline Translation Editor -->
+      <div id="bubbleEditorPopover" class="bubble-popover glass-card" style="display: none;">
+        <div class="popover-header">
+          <span class="badge" id="popoverTypeBadge">บทสนทนา</span>
+          <div class="popover-actions">
+            <button id="btnSpeakSource" class="btn-icon-sm" title="ออกเสียงต้นฉบับ"><i data-lucide="volume-2"></i></button>
+            <button id="btnCopySource" class="btn-icon-sm" title="คัดลอกข้อความเดิม"><i data-lucide="copy"></i></button>
+            <button id="btnClosePopover" class="btn-icon-sm" title="ปิด"><i data-lucide="x"></i></button>
+          </div>
+        </div>
+        <div class="popover-body">
+          <div class="orig-text-label">ภาษาต้นฉบับ:</div>
+          <div id="popoverSourceText" class="source-text-box"></div>
+          
+          <div class="trans-text-label">คำแปลภาษาไทย (แก้ไขได้):</div>
+          <textarea id="popoverThaiInput" class="thai-edit-textarea" rows="2"></textarea>
+        </div>
+        <div class="popover-footer">
+          <button id="btnSaveBubbleEdit" class="btn btn-primary btn-sm">
+            <i data-lucide="check"></i> บันทึก
+          </button>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Source Input Modal -->
+    <div id="sourceModal" class="modal-backdrop" style="display: none;">
+      <div class="modal-dialog glass-card">
+        <div class="modal-header">
+          <div class="modal-title">
+            <i data-lucide="folder-plus"></i>
+            <h2>เปิดตอนมังงะ / โหลดภาพ</h2>
+          </div>
+          <button class="modal-close" onclick="appUI.closeModal('sourceModal')"><i data-lucide="x"></i></button>
+        </div>
+
+        <div class="modal-tabs">
+          <button class="tab-btn active" data-tab="tab-url"><i data-lucide="globe"></i> ลิงก์เว็บมังงะ</button>
+          <button class="tab-btn" data-tab="tab-upload"><i data-lucide="upload"></i> อัปโหลดไฟล์</button>
+          <button class="tab-btn" data-tab="tab-links"><i data-lucide="list"></i> ลิงก์รูปภาพ</button>
+          <button class="tab-btn" data-tab="tab-sample"><i data-lucide="sparkles"></i> ตัวอย่างมังงะ</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Tab 1: Web URL -->
+          <div id="tab-url" class="tab-pane active">
+            <div class="input-group">
+              <label for="mangaWebUrl">ใส่ URL ตอนมังงะ (เว็บมังงะ / Raw manga / Aggregator):</label>
+              <div class="input-with-button">
+                <input type="url" id="mangaWebUrl" placeholder="https://example-manga.com/chapter-123" class="text-input">
+                <button id="btnFetchUrl" class="btn btn-primary">
+                  <i data-lucide="download-cloud"></i> ดึงรูปภาพ
+                </button>
+              </div>
+              <small class="helper-text">
+                💡 รองรับเว็บมังงะภาษาญี่ปุ่น/เกาหลี/สากลทั่วไป ระบบจะตรวจหาและดึงรูปหน้ามังงะทั้งหมดในหน้านั้นมาให้อัตโนมัติ
+              </small>
+            </div>
+          </div>
+
+          <!-- Tab 2: Upload Files -->
+          <div id="tab-upload" class="tab-pane">
+            <div class="drop-zone" id="dropZone">
+              <i data-lucide="file-up" class="drop-icon"></i>
+              <h3>ลากและวางรูปภาพมังงะที่นี่</h3>
+              <p>หรือคลิกเพื่อเลือกไฟล์ (JPG, PNG, WEBP)</p>
+              <input type="file" id="filePicker" multiple accept="image/*" style="display: none;">
+              <button class="btn btn-secondary mt-2" onclick="document.getElementById('filePicker').click()">
+                เลือกไฟล์จากเครื่อง
+              </button>
+            </div>
+          </div>
+
+          <!-- Tab 3: Direct Image Links -->
+          <div id="tab-links" class="tab-pane">
+            <div class="input-group">
+              <label for="directImageUrls">ใส่รายการ Direct Image URL (1 บรรทัดต่อ 1 รูป):</label>
+              <textarea id="directImageUrls" class="text-input text-area" rows="6" placeholder="https://site.com/p1.jpg&#10;https://site.com/p2.jpg&#10;https://site.com/p3.jpg"></textarea>
+              <button id="btnLoadDirectUrls" class="btn btn-primary mt-2">
+                <i data-lucide="check"></i> โหลดรูปภาพ
+              </button>
+            </div>
+          </div>
+
+          <!-- Tab 4: Sample Manga -->
+          <div id="tab-sample" class="tab-pane">
+            <p class="mb-3 text-muted">คลิกเพื่อทดสอบระบบแปลภาษาด้วยหน้าการ์ตูนตัวอย่าง:</p>
+            <div class="sample-cards-grid">
+              <div class="sample-card" onclick="appUI.loadSample('japanese')">
+                <div class="sample-tag">ภาษาญี่ปุ่น (Manga)</div>
+                <h4>ตัวอย่างมังงะแฟนตาซีญี่ปุ่น</h4>
+                <p>ทดสอบแปลบทสนทนาและ SFX ญี่ปุ่นเป็นไทย</p>
+                <button class="btn btn-sm btn-primary">โหลดตัวอย่างนี้</button>
+              </div>
+              <div class="sample-card" onclick="appUI.loadSample('korean')">
+                <div class="sample-tag">ภาษาเกาหลี (Manhwa)</div>
+                <h4>ตัวอย่างมันฮวา Webtoon</h4>
+                <p>ทดสอบแปลการ์ตูนเกาหลีทรงยาวแนว Webtoon</p>
+                <button class="btn btn-sm btn-primary">โหลดตัวอย่างนี้</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-backdrop" style="display: none;">
+      <div class="modal-dialog glass-card">
+        <div class="modal-header">
+          <div class="modal-title">
+            <i data-lucide="sliders"></i>
+            <h2>ตั้งค่า Gemini API & การแปล</h2>
+          </div>
+          <button class="modal-close" onclick="appUI.closeModal('settingsModal')"><i data-lucide="x"></i></button>
+        </div>
+
+        <div class="modal-body settings-form">
+          <!-- Gemini API Key -->
+          <div class="form-group">
+            <div class="form-label-row">
+              <label for="apiKeyInput">Google Gemini API Key:</label>
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" class="link-small">
+                รับ API Key ฟรีที่ Google AI Studio <i data-lucide="external-link"></i>
+              </a>
+            </div>
+            <div class="input-with-button">
+              <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="text-input">
+              <button id="btnToggleKeyVisibility" class="btn-icon" title="แสดง/ซ่อนคีย์"><i data-lucide="eye"></i></button>
+              <button id="btnTestApiKey" class="btn btn-secondary">ทดสอบคีย์</button>
+            </div>
+            <span id="apiKeyStatus" class="helper-status"></span>
+          </div>
+
+          <!-- Model Selector -->
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="modelSelect">โมเดล Gemini AI:</label>
+              <select id="modelSelect" class="text-input">
+                <option value="gemini-3.6-flash">Gemini 3.6 Flash (เร็ว เสถียร & แนะนำ)</option>
+                <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
+                <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
+              </select>
+
+
+            </div>
+
+            <!-- Translation Style -->
+            <div class="form-group">
+              <label for="translationStyle">สไตล์/โทนการแปล:</label>
+              <select id="translationStyle" class="text-input">
+                <option value="natural">ทั่วไป / สละสลวย (Natural)</option>
+                <option value="shonen">โชเน็น / ต่อสู้ดุดัน (Action / Shonen)</option>
+                <option value="romance">โรแมนติก / ดราม่าหวานซึ้ง (Romance)</option>
+                <option value="comedic">คอมเมดี้ / มุกตลกกวนๆ (Comedic)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Typography and Style -->
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="fontSelect">ฟอนต์ภาษาไทย (Font):</label>
+              <select id="fontSelect" class="text-input">
+                <option value="'Kanit', sans-serif">Kanit (มาตรฐานมังงะไทย)</option>
+                <option value="'Prompt', sans-serif">Prompt (คมชัด อ่านสบาย)</option>
+                <option value="'Mali', cursive">Mali (ลายมือ น่ารัก เหมาะกับแนวหวาน/ตลก)</option>
+                <option value="'Itim', cursive">Itim (สไตล์การ์ตูน สบายตา)</option>
+                <option value="'Chakra Petch', sans-serif">Chakra Petch (ไซไฟ / ดุดัน)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="fontSizeMultiplier">ขนาดตัวอักษร:</label>
+              <div class="slider-row">
+                <input type="range" id="fontSizeMultiplier" min="0.7" max="1.5" step="0.05" value="1.0">
+                <span id="fontSizeDisplay">100%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bubble Translation Style settings -->
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="cleaningMode">รูปแบบการแสดงผลคำแปล:</label>
+              <select id="cleaningMode" class="text-input">
+                <option value="below" selected>🏷️ แคปซูลทับตรงคำเดิม (ตรงจุด อ่านง่าย ไม่บังภาพ)</option>
+                <option value="smart">🧼 คลีนเนียนตามรูปทรงบอลลูน (Smart Inpaint)</option>
+                <option value="solid">⚪ แผ่นปิดทึบมาตรฐาน (Solid Box)</option>
+                <option value="transparent">🔍 ทับบนภาพเดิมแบบโปร่งใส (Transparent)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="bubblePatchOpacity">ความทึบของแผ่นปิด (เมื่อใช้โหมดคลีน):</label>
+              <div class="slider-row">
+                <input type="range" id="bubblePatchOpacity" min="0.5" max="1" step="0.05" value="0.95">
+                <span id="patchOpacityDisplay">95%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>ตัวเลือกเพิ่มเติม:</label>
+            <div class="checkbox-group">
+              <label class="custom-checkbox">
+                <input type="checkbox" id="chkTextStroke" checked>
+                <span>ตัดขอบตัวอักษรสีขาว/ดำ (อ่านง่ายขึ้น 100%)</span>
+              </label>
+              <label class="custom-checkbox">
+                <input type="checkbox" id="chkAutoPreload" checked>
+                <span>แอบแปลหน้าถัดไปล่วงหน้าอัตโนมัติ (อ่านลื่นไหล)</span>
+              </label>
+            </div>
+          </div>
+
+
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="appUI.closeModal('settingsModal')">ยกเลิก</button>
+          <button id="btnSaveSettings" class="btn btn-primary glow-btn">
+            <i data-lucide="check"></i> บันทึกการตั้งค่า
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile QR Connection Modal -->
+    <div id="mobileModal" class="modal-backdrop" style="display: none;">
+      <div class="modal-dialog glass-card mobile-connect-dialog">
+        <div class="modal-header">
+          <div class="modal-title">
+            <i data-lucide="smartphone"></i>
+            <h2>อ่านบนโทรศัพท์มือถือ</h2>
+          </div>
+          <button class="modal-close" onclick="appUI.closeModal('mobileModal')"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body text-center">
+          <p class="qr-guide-text">
+            เชื่อมต่อโทรศัพท์กับ <strong>Wi-Fi เดียวกันกับคอมพิวเตอร์</strong> แล้วใช้กล้องสแกน QR Code นี้เพื่อเปิดอ่านได้ทันที:
+          </p>
+          <div class="qr-code-wrapper" id="qrCodeContainer">
+            <img id="qrCodeImg" alt="Scan QR Code to open on Mobile" src="/api/qrcode">
+          </div>
+          <div class="mobile-url-box">
+            <input type="text" id="mobileUrlDisplay" readonly class="text-input" value="กำลังตรวจหา IP...">
+            <button id="btnCopyMobileUrl" class="btn btn-secondary">
+              <i data-lucide="copy"></i> คัดลอก
+            </button>
+          </div>
+          <div class="mobile-tips-card">
+            <h4>📱 เคล็ดลับการอ่านบนมือถือ:</h4>
+            <ul>
+              <li>👆 <strong>แตะปุ่ม "ต้นฉบับ" มุมขวาล่างค้างไว้</strong> เพื่อดูภาพดั้งเดิม (แทน Spacebar บนคอม)</li>
+              <li>📖 <strong>โหมดมังงะ:</strong> แตะฝั่งซ้าย/ขวาของจอ หรือปัดหน้าจอเพื่อเปลี่ยนหน้าได้เลย</li>
+              <li>✨ <strong>เปิดเต็มจอ:</strong> กดปุ่ม "เต็มจอ" หรือเพิ่มลงหน้าจอโฮม (Add to Home Screen) เพื่ออ่านเหมือนแอปแท้ๆ!</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating Action Button for Mobile: Hold to see Original -->
+    <button id="mobileFabOriginal" class="mobile-fab-original" title="แตะหรือกดค้างเพื่อดูภาพต้นฉบับ">
+      <i data-lucide="eye"></i>
+      <span>ต้นฉบับ</span>
+    </button>
+
+    <!-- Mobile Bottom Navigation Toolbar -->
+    <nav id="mobileBottomBar" class="mobile-bottom-bar glass-header">
+      <button id="mBtnOpen" class="m-bar-btn" title="เปิดมังงะ">
+        <i data-lucide="plus-circle"></i>
+        <span>เปิด</span>
+      </button>
+      <button id="mBtnToggleMode" class="m-bar-btn" title="สลับโหมด Webtoon/Manga">
+        <i data-lucide="scroll"></i>
+        <span id="mBtnModeLabel">Webtoon</span>
+      </button>
+      <button id="mBtnTranslate" class="m-bar-btn accent" title="แปลทั้งหมด">
+        <i data-lucide="languages"></i>
+        <span>แปล</span>
+      </button>
+      <button id="mBtnFullscreen" class="m-bar-btn" title="อ่านเต็มจอ">
+        <i data-lucide="expand"></i>
+        <span>เต็มจอ</span>
+      </button>
+      <button id="mBtnSettings" class="m-bar-btn" title="ตั้งค่า">
+        <i data-lucide="settings"></i>
+        <span>ตั้งค่า</span>
+      </button>
+    </nav>
+
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+  </div>
+
+  <script src="app.js?v=3.0"></script>
+</body>
+</html>

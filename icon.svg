@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="50%" stop-color="#a855f7" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </linearGradient>
+    <linearGradient id="bubble" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f1f5f9" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="#0a0c10" />
+  <rect x="24" y="24" width="464" height="464" rx="104" fill="none" stroke="url(#grad)" stroke-width="8" opacity="0.6" />
+  
+  <!-- Stylized M & Speech Bubble -->
+  <path d="M120 360 L120 180 L200 280 L280 180 L280 360" fill="none" stroke="url(#grad)" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" />
+  
+  <!-- Thai letter / Translation sparkle -->
+  <circle cx="370" cy="220" r="70" fill="url(#bubble)" />
+  <path d="M370 290 L340 330 L380 300 Z" fill="url(#bubble)" />
+  <text x="370" y="240" font-family="'Kanit', sans-serif" font-size="64" font-weight="bold" fill="#0f172a" text-anchor="middle">ไทย</text>
+  
+  <!-- Sparkles -->
+  <path d="M380 120 L390 145 L415 155 L390 165 L380 190 L370 165 L345 155 L370 145 Z" fill="#f472b6" />
+</svg>
